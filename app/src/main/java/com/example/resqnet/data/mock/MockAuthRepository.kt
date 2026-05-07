@@ -10,35 +10,32 @@ class MockAuthRepository : AuthRepository {
 
     private var loggedInUser: User? = null
 
-    override suspend fun sendOtp(phone: String): Result<Boolean> {
+    override suspend fun register(
+        fullName: String,
+        email: String,
+        password: String,
+        dobMillis: Long
+    ): Result<User> {
         delay(Constants.MOCK_DELAY_MS)
-        // Mock: always succeeds for any 10-digit number
-        return if (phone.replace("+91", "").length == 10) {
-            Result.success(true)
-        } else {
-            Result.failure(Exception("Invalid phone number"))
-        }
+        val user = FakeData.currentUser.copy(name = fullName)
+        loggedInUser = user
+        return Result.success(user)
     }
 
-    override suspend fun verifyOtp(phone: String, otp: String): Result<User> {
+    override suspend fun login(email: String, password: String): Result<User> {
         delay(Constants.MOCK_DELAY_MS)
-        // Mock: any 6-digit OTP is accepted
-        if (otp.length != 6) {
-            return Result.failure(Exception("Invalid OTP"))
-        }
-
-        // Return different roles based on phone suffix for testing
         val user = when {
-            phone.endsWith("0000") -> FakeData.users.first { it.role == UserRole.ADMIN }
-            phone.endsWith("1111") -> FakeData.users.first { it.role == UserRole.VOLUNTEER }
-            else -> FakeData.currentUser.copy(phone = phone)
+            email.contains("admin")     -> FakeData.users.first { it.role == UserRole.ADMIN }
+            email.contains("volunteer") -> FakeData.users.first { it.role == UserRole.VOLUNTEER }
+            else                        -> FakeData.currentUser.copy(phone = email)
         }
-
         loggedInUser = user
         return Result.success(user)
     }
 
     override fun getCurrentUser(): User? = loggedInUser
+
+    override fun needsReAuth(): Boolean = loggedInUser == null
 
     override fun logout() {
         loggedInUser = null

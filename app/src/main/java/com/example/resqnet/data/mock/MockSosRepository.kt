@@ -80,6 +80,12 @@ class MockSosRepository : SosRepository {
         )
     }
 
+    override suspend fun expandRadius(id: String, radiusKm: Float): Result<Boolean> {
+        val index = FakeData.sosRequests.indexOfFirst { it.id == id }
+        if (index != -1) FakeData.sosRequests[index] = FakeData.sosRequests[index].copy(radiusKm = radiusKm)
+        return Result.success(true)
+    }
+
     override fun observeSosStatus(id: String): Flow<SosStatus> = flow {
         // Simulate status progression
         emit(SosStatus.PENDING)

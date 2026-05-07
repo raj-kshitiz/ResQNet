@@ -123,13 +123,16 @@ fun HistoryScreen(
             } else {
                 LazyColumn(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                        horizontal = 16.dp,
+                        vertical = 12.dp
+                    ),
+                    modifier = Modifier.fillMaxSize()
                 ) {
                     items(items) { sos ->
                         HistoryCard(sos = sos)
                     }
+                    item { androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(8.dp)) }
                 }
             }
         }

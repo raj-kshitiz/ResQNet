@@ -8,19 +8,27 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.resqnet.domain.model.SosStatus
-import com.example.resqnet.ui.theme.*
+import com.example.resqnet.ui.theme.ResQNetTheme
 
 @Composable
 fun StatusBadge(
     status: SosStatus,
     modifier: Modifier = Modifier
 ) {
-    val (bgColor, textColor) = status.badgeColors()
+    val cs = MaterialTheme.colorScheme
+    val (bgColor, textColor) = when (status) {
+        SosStatus.PENDING     -> cs.errorContainer     to cs.onErrorContainer
+        SosStatus.NOTIFIED    -> cs.tertiaryContainer  to cs.onTertiaryContainer
+        SosStatus.ACCEPTED    -> cs.secondaryContainer to cs.onSecondaryContainer
+        SosStatus.IN_PROGRESS -> cs.secondaryContainer to cs.onSecondaryContainer
+        SosStatus.RESOLVED    -> cs.tertiaryContainer  to cs.onTertiaryContainer
+        SosStatus.CANCELLED   -> cs.surfaceVariant     to cs.onSurfaceVariant
+        SosStatus.EXPIRED     -> cs.surfaceVariant     to cs.onSurfaceVariant
+    }
 
     Text(
         text = status.label,
@@ -32,18 +40,6 @@ fun StatusBadge(
             .background(bgColor)
             .padding(horizontal = 10.dp, vertical = 4.dp)
     )
-}
-
-private fun SosStatus.badgeColors(): Pair<Color, Color> {
-    return when (this) {
-        SosStatus.PENDING -> Red100 to Red900
-        SosStatus.NOTIFIED -> Amber100 to Color(0xFF795548)
-        SosStatus.ACCEPTED -> Blue100 to Blue900
-        SosStatus.IN_PROGRESS -> Blue100 to Blue900
-        SosStatus.RESOLVED -> Green100 to Green900
-        SosStatus.CANCELLED -> Gray200 to Gray700
-        SosStatus.EXPIRED -> Gray200 to Gray700
-    }
 }
 
 @Preview(showBackground = true)

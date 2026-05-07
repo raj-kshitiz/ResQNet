@@ -5,10 +5,9 @@ sealed class Routes(val route: String) {
     data object Onboarding : Routes("onboarding")
 
     // Auth
-    data object Login : Routes("login")
-    data object Otp : Routes("otp/{phone}") {
-        fun createRoute(phone: String) = "otp/$phone"
-    }
+    data object Login    : Routes("login")
+    data object Register : Routes("register")
+    data object Permissions : Routes("permissions")
 
     // Main (Requester)
     data object Home : Routes("home")

@@ -5,7 +5,7 @@ import com.example.resqnet.domain.model.*
 object FakeData {
 
     // ── Current logged-in user ──
-    val currentUser = User(
+    var currentUser = User(
         id = "u1",
         phone = "+919876543210",
         name = "Kshitiz",

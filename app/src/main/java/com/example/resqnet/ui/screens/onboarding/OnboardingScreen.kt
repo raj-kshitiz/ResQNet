@@ -96,7 +96,7 @@ fun OnboardingScreen(
             state = pagerState,
             modifier = Modifier.weight(1f)
         ) { page ->
-            OnboardingPageContent(pages[page])
+            OnboardingPageContent(page = pages[page], pageIndex = page)
         }
 
         // Dots indicator
@@ -150,7 +150,14 @@ fun OnboardingScreen(
 }
 
 @Composable
-private fun OnboardingPageContent(page: OnboardingPage) {
+private fun OnboardingPageContent(page: OnboardingPage, pageIndex: Int) {
+    val cs = MaterialTheme.colorScheme
+    val (containerColor, iconColor) = when (pageIndex) {
+        0    -> cs.primaryContainer   to cs.primary
+        1    -> cs.secondaryContainer to cs.secondary
+        else -> cs.tertiaryContainer  to cs.tertiary
+    }
+
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
@@ -163,12 +170,12 @@ private fun OnboardingPageContent(page: OnboardingPage) {
             modifier = Modifier
                 .size(120.dp)
                 .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.primaryContainer)
+                .background(containerColor)
         ) {
             Icon(
                 imageVector = page.icon,
                 contentDescription = page.title,
-                tint = MaterialTheme.colorScheme.primary,
+                tint = iconColor,
                 modifier = Modifier.size(56.dp)
             )
         }

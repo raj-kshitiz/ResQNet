@@ -4,31 +4,43 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Sos
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -37,10 +49,14 @@ import com.example.resqnet.ui.theme.ResQNetTheme
 
 @Composable
 fun LoginScreen(
-    onOtpSent: (String) -> Unit,
-    authViewModel: AuthViewModel = viewModel()
+    onLoggedIn: (String) -> Unit,
+    onNavigateToRegister: () -> Unit,
+    authViewModel: AuthViewModel = viewModel(
+        factory = AuthViewModel.Factory(LocalContext.current)
+    )
 ) {
     val uiState by authViewModel.uiState.collectAsState()
+    var passwordVisible by remember { mutableStateOf(false) }
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -48,7 +64,8 @@ fun LoginScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .padding(32.dp)
+            .imePadding()
+            .padding(horizontal = 28.dp)
     ) {
         // Logo
         Box(
@@ -66,7 +83,7 @@ fun LoginScreen(
             )
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
         Text(
             text = "ResQNet",
@@ -75,32 +92,43 @@ fun LoginScreen(
             color = MaterialTheme.colorScheme.primary
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
-
         Text(
             text = "Emergency help, one tap away",
-            style = MaterialTheme.typography.bodyMedium,
+            style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
         )
 
-        Spacer(modifier = Modifier.height(48.dp))
+        Spacer(modifier = Modifier.height(40.dp))
 
-        Text(
-            text = "Enter your phone number",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Medium,
+        // Email field
+        OutlinedTextField(
+            value = uiState.email,
+            onValueChange = { authViewModel.onEmailChanged(it) },
+            label = { Text("Email Address") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+            singleLine = true,
+            shape = MaterialTheme.shapes.medium,
             modifier = Modifier.fillMaxWidth()
         )
 
         Spacer(modifier = Modifier.height(12.dp))
 
+        // Password field
         OutlinedTextField(
-            value = uiState.phone,
-            onValueChange = { authViewModel.onPhoneChanged(it) },
-            label = { Text("Phone Number") },
-            prefix = { Text("+91  ") },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+            value = uiState.password,
+            onValueChange = { authViewModel.onPasswordChanged(it) },
+            label = { Text("Password") },
+            visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            trailingIcon = {
+                IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                    Icon(
+                        imageVector = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                        contentDescription = if (passwordVisible) "Hide password" else "Show password"
+                    )
+                }
+            },
             singleLine = true,
             shape = MaterialTheme.shapes.medium,
             modifier = Modifier.fillMaxWidth()
@@ -111,27 +139,19 @@ fun LoginScreen(
             Text(
                 text = uiState.error!!,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error
+                color = MaterialTheme.colorScheme.error,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
             )
         }
 
         Spacer(modifier = Modifier.height(24.dp))
 
+        // Sign in button
         Button(
-            // TODO: Restore auth logic — temporarily bypassed for UI testing
-            // onClick = {
-            //     authViewModel.sendOtp {
-            //         onOtpSent(uiState.phone)
-            //     }
-            // },
-            // enabled = uiState.phone.length == 10 && !uiState.isLoading,
-
-            // ── Bypass: navigate to OTP screen immediately ──
-            onClick = { onOtpSent(uiState.phone.ifEmpty { "0000000000" }) },
-            enabled = true,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary
-            ),
+            onClick = { authViewModel.login(onLoggedIn) },
+            enabled = !uiState.isLoading,
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
             shape = MaterialTheme.shapes.medium,
             modifier = Modifier
                 .fillMaxWidth()
@@ -145,7 +165,7 @@ fun LoginScreen(
                 )
             } else {
                 Text(
-                    text = "Send OTP",
+                    text = "Sign In",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -154,13 +174,25 @@ fun LoginScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        Text(
-            text = "We'll send a verification code to this number",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth()
-        )
+        // Navigate to register
+        Row(
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Don't have an account?",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            TextButton(onClick = onNavigateToRegister) {
+                Text(
+                    text = "Create Account",
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
     }
 }
 
@@ -168,6 +200,6 @@ fun LoginScreen(
 @Composable
 private fun LoginScreenPreview() {
     ResQNetTheme {
-        LoginScreen(onOtpSent = {})
+        LoginScreen(onLoggedIn = {}, onNavigateToRegister = {})
     }
 }

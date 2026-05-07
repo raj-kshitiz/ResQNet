@@ -10,9 +10,13 @@ import kotlinx.coroutines.delay
 
 class MockVolunteerRepository : VolunteerRepository {
 
-    override suspend fun registerAsVolunteer(skills: List<String>): Result<Boolean> {
+    override suspend fun registerAsVolunteer(phone: String, skills: List<String>): Result<Boolean> {
         delay(Constants.MOCK_DELAY_MS)
-        // Mock: update the current user to become a volunteer
+        FakeData.currentUser = FakeData.currentUser.copy(
+            phone = phone,
+            role = UserRole.VOLUNTEER,
+            volunteerProfile = VolunteerProfile(skills = skills)
+        )
         return Result.success(true)
     }
 

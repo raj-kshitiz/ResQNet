@@ -1,6 +1,5 @@
 package com.example.resqnet.ui.screens.volunteer
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,24 +29,31 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.example.resqnet.data.mock.FakeData
-import com.example.resqnet.ui.components.StatusBadge
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.resqnet.domain.model.SosStatus
+import com.example.resqnet.ui.components.StatusBadge
 import com.example.resqnet.ui.theme.ResQNetTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ActiveResponseScreen(
     sosId: String,
-    onDone: () -> Unit
+    onDone: () -> Unit,
+    volunteerViewModel: VolunteerViewModel = viewModel(factory = VolunteerViewModel.Factory)
 ) {
-    val sos = FakeData.sosRequests.find { it.id == sosId }
+    val uiState by volunteerViewModel.uiState.collectAsState()
+
+    LaunchedEffect(sosId) { volunteerViewModel.loadSosById(sosId) }
+
+    val sos = uiState.selectedSos
 
     Scaffold(
         topBar = {
@@ -151,7 +157,7 @@ fun ActiveResponseScreen(
                         Spacer(modifier = Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = sos?.requesterName ?: "Unknown",
+                                text = sos?.requesterName ?: "Loading...",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.SemiBold
                             )
@@ -161,7 +167,6 @@ fun ActiveResponseScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                        // Call button placeholder
                         IconButton(onClick = { /* TODO: Implement calling */ }) {
                             Icon(
                                 Icons.Default.Call,
@@ -184,9 +189,9 @@ fun ActiveResponseScreen(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            // Resolve button
             Button(
-                onClick = onDone,
+                onClick = { volunteerViewModel.resolveSos(sosId, onDone) },
+                enabled = !uiState.isLoading,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.tertiary
                 ),

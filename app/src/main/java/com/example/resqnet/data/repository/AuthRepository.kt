@@ -3,15 +3,24 @@ package com.example.resqnet.data.repository
 import com.example.resqnet.domain.model.User
 
 interface AuthRepository {
-    /** Send OTP to the given phone number. Returns true on success. */
-    suspend fun sendOtp(phone: String): Result<Boolean>
 
-    /** Verify OTP. Returns the authenticated User on success. */
-    suspend fun verifyOtp(phone: String, otp: String): Result<User>
+    /** Register a new user with email + password. Returns the created User on success. */
+    suspend fun register(
+        fullName: String,
+        email: String,
+        password: String,
+        dobMillis: Long
+    ): Result<User>
 
-    /** Get the currently logged-in user, or null. */
+    /** Sign in an existing user. Returns the authenticated User on success. */
+    suspend fun login(email: String, password: String): Result<User>
+
+    /** Get the currently signed-in Firebase user, or null. */
     fun getCurrentUser(): User?
 
-    /** Log out and clear session. */
+    /** Returns true if the user must re-authenticate (session > 7 days old or not signed in). */
+    fun needsReAuth(): Boolean
+
+    /** Log out and clear local session timestamp. */
     fun logout()
 }

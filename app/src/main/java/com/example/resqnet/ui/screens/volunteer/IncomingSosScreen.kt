@@ -33,6 +33,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -43,7 +44,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.resqnet.data.mock.FakeData
 import com.example.resqnet.domain.model.EmergencyType
 import com.example.resqnet.ui.components.EmergencyTypeChip
 import com.example.resqnet.ui.components.icon
@@ -55,10 +55,13 @@ fun IncomingSosScreen(
     sosId: String,
     onAccepted: () -> Unit,
     onDeclined: () -> Unit,
-    volunteerViewModel: VolunteerViewModel = viewModel()
+    volunteerViewModel: VolunteerViewModel = viewModel(factory = VolunteerViewModel.Factory)
 ) {
     val uiState by volunteerViewModel.uiState.collectAsState()
-    val sos = FakeData.sosRequests.find { it.id == sosId }
+
+    LaunchedEffect(sosId) { volunteerViewModel.loadSosById(sosId) }
+
+    val sos = uiState.selectedSos
 
     Scaffold(
         topBar = {

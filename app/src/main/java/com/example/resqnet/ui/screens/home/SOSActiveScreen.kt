@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
@@ -87,14 +88,46 @@ fun SOSActiveScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(24.dp)
+                .padding(horizontal = 24.dp)
         ) {
-            // Status badge
-            StatusBadge(status = uiState.currentStatus)
+            // Colored status banner
+            val cs = MaterialTheme.colorScheme
+            val (bannerBg, bannerText) = when (uiState.currentStatus) {
+                SosStatus.PENDING, SosStatus.NOTIFIED -> cs.errorContainer to cs.onErrorContainer
+                SosStatus.ACCEPTED, SosStatus.IN_PROGRESS -> cs.secondaryContainer to cs.onSecondaryContainer
+                SosStatus.RESOLVED -> cs.tertiaryContainer to cs.onTertiaryContainer
+                else -> cs.surfaceVariant to cs.onSurfaceVariant
+            }
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 16.dp)
+                    .background(bannerBg, RoundedCornerShape(12.dp))
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    val radiusKm = uiState.activeSos?.radiusKm ?: 3f
+                    Text(
+                        text = when (uiState.currentStatus) {
+                            SosStatus.PENDING     -> "Sending your request..."
+                            SosStatus.NOTIFIED    -> "Searching within ${radiusKm.toInt()} km"
+                            SosStatus.ACCEPTED    -> "A volunteer has accepted"
+                            SosStatus.IN_PROGRESS -> "Help is on the way"
+                            SosStatus.RESOLVED    -> "Situation resolved"
+                            SosStatus.CANCELLED   -> "Request cancelled"
+                            else                  -> "Processing..."
+                        },
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = bannerText
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    StatusBadge(status = uiState.currentStatus)
+                }
+            }
 
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Status steps
+            // Timeline steps
             StatusStep(
                 icon = Icons.Default.HourglassTop,
                 label = "Request Sent",
@@ -123,7 +156,8 @@ fun SOSActiveScreen(
                 icon = Icons.Default.CheckCircle,
                 label = "Resolved",
                 isActive = uiState.currentStatus == SosStatus.RESOLVED,
-                isCurrent = uiState.currentStatus == SosStatus.RESOLVED
+                isCurrent = uiState.currentStatus == SosStatus.RESOLVED,
+                isLast = true
             )
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -207,40 +241,56 @@ private fun StatusStep(
     icon: ImageVector,
     label: String,
     isActive: Boolean,
-    isCurrent: Boolean
+    isCurrent: Boolean,
+    isLast: Boolean = false
 ) {
+    val cs = MaterialTheme.colorScheme
     Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp)
+        verticalAlignment = Alignment.Top,
+        modifier = Modifier.fillMaxWidth()
     ) {
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier
-                .size(40.dp)
-                .clip(CircleShape)
-                .background(
-                    when {
-                        isCurrent -> MaterialTheme.colorScheme.primary
-                        isActive -> MaterialTheme.colorScheme.tertiary
-                        else -> MaterialTheme.colorScheme.surfaceVariant
-                    }
-                )
+        // Icon + connecting line column
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.width(40.dp)
         ) {
-            if (isCurrent) {
-                CircularProgressIndicator(
-                    color = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.size(20.dp),
-                    strokeWidth = 2.dp
-                )
-            } else {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = label,
-                    tint = if (isActive) MaterialTheme.colorScheme.onTertiary
-                    else MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp)
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(
+                        when {
+                            isCurrent -> cs.primary
+                            isActive  -> cs.tertiary
+                            else      -> cs.surfaceVariant
+                        }
+                    )
+            ) {
+                if (isCurrent) {
+                    CircularProgressIndicator(
+                        color = cs.onPrimary,
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = label,
+                        tint = if (isActive) cs.onTertiary else cs.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+            if (!isLast) {
+                Box(
+                    modifier = Modifier
+                        .width(2.dp)
+                        .height(28.dp)
+                        .background(
+                            if (isActive) cs.tertiary.copy(alpha = 0.5f)
+                            else cs.outlineVariant
+                        )
                 )
             }
         }
@@ -251,8 +301,8 @@ private fun StatusStep(
             text = label,
             style = MaterialTheme.typography.bodyLarge,
             fontWeight = if (isCurrent) FontWeight.SemiBold else FontWeight.Normal,
-            color = if (isActive) MaterialTheme.colorScheme.onSurface
-            else MaterialTheme.colorScheme.onSurfaceVariant
+            color = if (isActive) cs.onSurface else cs.onSurfaceVariant,
+            modifier = Modifier.padding(top = 8.dp, bottom = if (!isLast) 20.dp else 0.dp)
         )
     }
 }

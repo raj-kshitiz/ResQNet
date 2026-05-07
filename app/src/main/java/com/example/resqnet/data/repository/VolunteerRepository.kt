@@ -3,8 +3,8 @@ package com.example.resqnet.data.repository
 import com.example.resqnet.domain.model.SosRequest
 
 interface VolunteerRepository {
-    /** Register the current user as a volunteer with given skills. */
-    suspend fun registerAsVolunteer(skills: List<String>): Result<Boolean>
+    /** Register the current user as a volunteer with a phone number and skills. */
+    suspend fun registerAsVolunteer(phone: String, skills: List<String>): Result<Boolean>
 
     /** Toggle volunteer availability. */
     suspend fun setAvailability(available: Boolean): Result<Boolean>

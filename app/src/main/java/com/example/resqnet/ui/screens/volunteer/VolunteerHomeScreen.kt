@@ -55,7 +55,7 @@ fun VolunteerHomeScreen(
     onNavigateToHistory: () -> Unit,
     onNavigateToProfile: () -> Unit,
     onNavigateToRequesterHome: () -> Unit,
-    volunteerViewModel: VolunteerViewModel = viewModel()
+    volunteerViewModel: VolunteerViewModel = viewModel(factory = VolunteerViewModel.Factory)
 ) {
     val uiState by volunteerViewModel.uiState.collectAsState()
 
@@ -174,13 +174,13 @@ fun VolunteerHomeScreen(
                 ) {
                     StatCard(
                         title = "Responses",
-                        value = "24",
+                        value = "${uiState.totalResponses}",
                         subtitle = "Total",
                         modifier = Modifier.weight(1f)
                     )
                     StatCard(
                         title = "Score",
-                        value = "87",
+                        value = "${uiState.reliabilityScore.toInt()}%",
                         subtitle = "Reliability",
                         modifier = Modifier.weight(1f)
                     )

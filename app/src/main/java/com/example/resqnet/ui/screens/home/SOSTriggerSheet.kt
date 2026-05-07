@@ -27,6 +27,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -43,6 +44,7 @@ fun SOSTriggerSheet(
     sosViewModel: SosViewModel = viewModel()
 ) {
     val uiState by sosViewModel.uiState.collectAsState()
+    val context = LocalContext.current
 
     Scaffold(
         topBar = {
@@ -123,7 +125,7 @@ fun SOSTriggerSheet(
             Spacer(modifier = Modifier.height(32.dp))
 
             Button(
-                onClick = { sosViewModel.createSos(onSosCreated) },
+                onClick = { sosViewModel.createSos(context, onSosCreated) },
                 enabled = uiState.selectedType != null && !uiState.isLoading,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary

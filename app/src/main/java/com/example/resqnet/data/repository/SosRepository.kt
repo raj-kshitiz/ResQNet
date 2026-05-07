@@ -31,4 +31,7 @@ interface SosRepository {
 
     /** Observe real-time status changes for a given SOS request. */
     fun observeSosStatus(id: String): Flow<SosStatus>
+
+    /** Expand the search radius on an active SOS request. Cloud Functions pick this up. */
+    suspend fun expandRadius(id: String, radiusKm: Float): Result<Boolean>
 }
