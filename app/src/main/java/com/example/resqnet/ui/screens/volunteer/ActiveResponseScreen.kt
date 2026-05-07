@@ -13,7 +13,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Call
-import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Navigation
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Button
@@ -24,6 +24,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -35,6 +36,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -54,6 +56,7 @@ fun ActiveResponseScreen(
     LaunchedEffect(sosId) { volunteerViewModel.loadSosById(sosId) }
 
     val sos = uiState.selectedSos
+    val status = sos?.status ?: SosStatus.ACCEPTED
 
     Scaffold(
         topBar = {
@@ -77,18 +80,23 @@ fun ActiveResponseScreen(
                 .padding(innerPadding)
                 .padding(24.dp)
         ) {
-            // Status
+            // Status row
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
-                    text = "Heading to requester",
+                    text = when (status) {
+                        SosStatus.ACCEPTED    -> "You accepted – tap On the Way"
+                        SosStatus.IN_PROGRESS -> "Heading to requester"
+                        SosStatus.RESOLVED    -> "Mission complete!"
+                        else                  -> "Active response"
+                    },
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold
                 )
-                StatusBadge(status = SosStatus.IN_PROGRESS)
+                StatusBadge(status = status)
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -109,21 +117,27 @@ fun ActiveResponseScreen(
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Icon(
-                            imageVector = Icons.Default.Navigation,
-                            contentDescription = "Navigation",
-                            tint = MaterialTheme.colorScheme.primary,
+                            imageVector = if (status == SosStatus.RESOLVED)
+                                Icons.Default.CheckCircle else Icons.Default.Navigation,
+                            contentDescription = null,
+                            tint = if (status == SosStatus.RESOLVED)
+                                MaterialTheme.colorScheme.tertiary
+                            else MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(48.dp)
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "Navigation Map",
+                            text = if (status == SosStatus.RESOLVED) "Resolved" else "Navigation Map",
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
-                            text = "Live directions to requester",
+                            text = if (status == SosStatus.RESOLVED)
+                                "The requester has marked this resolved"
+                            else "Live directions to requester",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center
                         )
                     }
                 }
@@ -167,7 +181,7 @@ fun ActiveResponseScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                        IconButton(onClick = { /* TODO: Implement calling */ }) {
+                        IconButton(onClick = { /* TODO: call requester */ }) {
                             Icon(
                                 Icons.Default.Call,
                                 contentDescription = "Call",
@@ -175,7 +189,6 @@ fun ActiveResponseScreen(
                             )
                         }
                     }
-
                     if (sos?.description != null) {
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
@@ -189,22 +202,66 @@ fun ActiveResponseScreen(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            Button(
-                onClick = { volunteerViewModel.resolveSos(sosId, onDone) },
-                enabled = !uiState.isLoading,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.tertiary
-                ),
-                shape = MaterialTheme.shapes.medium,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp)
-            ) {
-                Text(
-                    text = "✓  Mark as Resolved",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
+            when (status) {
+                SosStatus.ACCEPTED -> {
+                    // Volunteer taps this to let the requester know help is on the way
+                    Button(
+                        onClick = { volunteerViewModel.setOnTheWay(sosId) },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary
+                        ),
+                        shape = MaterialTheme.shapes.medium,
+                        modifier = Modifier.fillMaxWidth().height(52.dp)
+                    ) {
+                        Text(
+                            "🚗  I'm On the Way",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
+                SosStatus.IN_PROGRESS -> {
+                    // Waiting for requester to mark resolved
+                    Text(
+                        text = "Waiting for the requester to mark this resolved.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    OutlinedButton(
+                        onClick = onDone,
+                        shape = MaterialTheme.shapes.medium,
+                        modifier = Modifier.fillMaxWidth().height(48.dp)
+                    ) { Text("Go Back") }
+                }
+
+                SosStatus.RESOLVED -> {
+                    Button(
+                        onClick = onDone,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.tertiary
+                        ),
+                        shape = MaterialTheme.shapes.medium,
+                        modifier = Modifier.fillMaxWidth().height(52.dp)
+                    ) {
+                        Text(
+                            "✓  Done",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
+                else -> {
+                    OutlinedButton(
+                        onClick = onDone,
+                        shape = MaterialTheme.shapes.medium,
+                        modifier = Modifier.fillMaxWidth().height(48.dp)
+                    ) { Text("Go Back") }
+                }
             }
         }
     }

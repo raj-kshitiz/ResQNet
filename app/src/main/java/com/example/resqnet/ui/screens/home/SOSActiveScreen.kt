@@ -128,35 +128,37 @@ fun SOSActiveScreen(
             }
 
             // Timeline steps
+            // isActive = this step is completed; isCurrent = this is the step being waited for next
+            val s = uiState.currentStatus
             StatusStep(
                 icon = Icons.Default.HourglassTop,
                 label = "Request Sent",
-                isActive = uiState.currentStatus.ordinal >= SosStatus.PENDING.ordinal,
-                isCurrent = uiState.currentStatus == SosStatus.PENDING
+                isActive = true,
+                isCurrent = false
             )
             StatusStep(
                 icon = Icons.Default.NotificationsActive,
                 label = "Notifying Volunteers",
-                isActive = uiState.currentStatus.ordinal >= SosStatus.NOTIFIED.ordinal,
-                isCurrent = uiState.currentStatus == SosStatus.NOTIFIED
+                isActive = s.ordinal >= SosStatus.NOTIFIED.ordinal,
+                isCurrent = s == SosStatus.PENDING
             )
             StatusStep(
                 icon = Icons.Default.PersonPin,
                 label = "Volunteer Accepted",
-                isActive = uiState.currentStatus.ordinal >= SosStatus.ACCEPTED.ordinal,
-                isCurrent = uiState.currentStatus == SosStatus.ACCEPTED
+                isActive = s.ordinal >= SosStatus.ACCEPTED.ordinal,
+                isCurrent = s == SosStatus.NOTIFIED
             )
             StatusStep(
                 icon = Icons.Default.Route,
                 label = "Help On The Way",
-                isActive = uiState.currentStatus.ordinal >= SosStatus.IN_PROGRESS.ordinal,
-                isCurrent = uiState.currentStatus == SosStatus.IN_PROGRESS
+                isActive = s.ordinal >= SosStatus.IN_PROGRESS.ordinal,
+                isCurrent = s == SosStatus.ACCEPTED
             )
             StatusStep(
                 icon = Icons.Default.CheckCircle,
                 label = "Resolved",
-                isActive = uiState.currentStatus == SosStatus.RESOLVED,
-                isCurrent = uiState.currentStatus == SosStatus.RESOLVED,
+                isActive = s == SosStatus.RESOLVED,
+                isCurrent = s == SosStatus.IN_PROGRESS,
                 isLast = true
             )
 
@@ -178,7 +180,7 @@ fun SOSActiveScreen(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            // Action buttons
+            // Action buttons — only requester can mark resolved, only after volunteer is on the way
             if (uiState.currentStatus == SosStatus.IN_PROGRESS) {
                 Button(
                     onClick = { sosViewModel.resolveSos(sosId, onDone) },

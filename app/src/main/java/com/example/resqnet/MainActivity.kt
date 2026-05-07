@@ -1,8 +1,7 @@
 package com.example.resqnet
 
 import android.Manifest
-import android.app.NotificationChannel
-import android.app.NotificationManager
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -11,18 +10,21 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.rememberNavController
 import com.example.resqnet.navigation.NavGraph
-import com.example.resqnet.service.FcmService
 import com.example.resqnet.ui.theme.ResQNetTheme
 import com.google.firebase.messaging.FirebaseMessaging
 
 class MainActivity : ComponentActivity() {
+
+    private val pendingSosId = mutableStateOf<String?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        createNotificationChannel()
+        pendingSosId.value = intent.getStringExtra("sos_id")
         saveFcmToken()
         requestNotificationPermission()
         setContent {
@@ -32,30 +34,21 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     val navController = rememberNavController()
-                    NavGraph(navController = navController)
+                    NavGraph(navController = navController, initialSosId = pendingSosId.value)
                 }
             }
         }
     }
 
-    private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                FcmService.CHANNEL_ID,
-                "SOS Alerts",
-                NotificationManager.IMPORTANCE_HIGH
-            ).apply {
-                description = "Emergency SOS alerts from nearby community members"
-                enableVibration(true)
-            }
-            getSystemService(NotificationManager::class.java)
-                ?.createNotificationChannel(channel)
-        }
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        pendingSosId.value = intent.getStringExtra("sos_id")
     }
 
     private fun saveFcmToken() {
         FirebaseMessaging.getInstance().token.addOnSuccessListener { token ->
-            FcmService.saveTokenToFirestore(token)
+            com.example.resqnet.service.FcmService.saveTokenToFirestore(token)
         }
     }
 

@@ -2,6 +2,8 @@ package com.example.resqnet.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -27,13 +29,24 @@ import com.example.resqnet.ui.screens.volunteer.VolunteerHomeScreen
 @Composable
 fun NavGraph(
     navController: NavHostController,
-    startDestination: String = Routes.Onboarding.route
+    startDestination: String = Routes.Onboarding.route,
+    initialSosId: String? = null
 ) {
     // Single shared AuthViewModel so checkAuthState shares state with Login/Register
     val context = LocalContext.current
     val authViewModel: AuthViewModel = viewModel(
         factory = AuthViewModel.Factory(context)
     )
+
+    // Navigate to IncomingSosScreen when app is opened from a notification
+    val currentSosId by rememberUpdatedState(initialSosId)
+    LaunchedEffect(currentSosId) {
+        val sosId = currentSosId ?: return@LaunchedEffect
+        navController.navigate(Routes.VolunteerHome.route) {
+            popUpTo(0) { inclusive = true }
+        }
+        navController.navigate(Routes.IncomingSos.createRoute(sosId))
+    }
 
     NavHost(
         navController = navController,

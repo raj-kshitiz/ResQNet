@@ -1,8 +1,6 @@
 package com.example.resqnet.ui.screens.volunteer
 
 import android.app.Application
-import androidx.core.app.NotificationCompat
-import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -13,9 +11,7 @@ import com.example.resqnet.data.firebase.FirebaseVolunteerRepository
 import com.example.resqnet.data.repository.VolunteerRepository
 import com.example.resqnet.domain.model.SosRequest
 import com.example.resqnet.domain.model.SosStatus
-import com.example.resqnet.service.FcmService
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.DocumentChange
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -46,56 +42,12 @@ class VolunteerViewModel(
     private val _uiState = MutableStateFlow(VolunteerUiState())
     val uiState: StateFlow<VolunteerUiState> = _uiState.asStateFlow()
 
-    private var alertListener: ListenerRegistration? = null
+    private var selectedSosListener: ListenerRegistration? = null
 
     init {
         loadNearbySos()
         loadVolunteerStats()
-        listenForAlerts()
     }
-
-    // ── Firestore snapshot listener: fires a local notification for each new alert ──
-
-    private fun listenForAlerts() {
-        val uid = auth.currentUser?.uid ?: return
-        alertListener = firestore.collection("notifications").document(uid)
-            .collection("alerts")
-            .whereEqualTo("seen", false)
-            .addSnapshotListener { snap, _ ->
-                snap?.documentChanges
-                    ?.filter { it.type == DocumentChange.Type.ADDED }
-                    ?.forEach { change ->
-                        showLocalNotification(change.document.data ?: return@forEach)
-                        change.document.reference.update("seen", true)
-                    }
-            }
-    }
-
-    private fun showLocalNotification(data: Map<String, Any?>) {
-        val context = getApplication<Application>()
-        val emergencyType = (data["emergencyType"] as? String ?: "EMERGENCY")
-            .replace('_', ' ').lowercase().replaceFirstChar { it.uppercase() }
-        val requesterName = data["requesterName"] as? String ?: "Someone"
-        val hint = data["addressHint"] as? String
-        val body = if (hint != null) "$requesterName needs help near $hint"
-                   else "$requesterName needs help nearby"
-
-        val notification = NotificationCompat.Builder(context, FcmService.CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_dialog_alert)
-            .setContentTitle("🚨 $emergencyType Alert")
-            .setContentText(body)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
-            .setPriority(NotificationCompat.PRIORITY_MAX)
-            .setAutoCancel(true)
-            .build()
-
-        try {
-            NotificationManagerCompat.from(context)
-                .notify(System.currentTimeMillis().toInt(), notification)
-        } catch (_: SecurityException) { }
-    }
-
-    // ── Existing volunteer logic ──────────────────────────────────────────────
 
     private fun loadVolunteerStats() {
         viewModelScope.launch {
@@ -159,50 +111,55 @@ class VolunteerViewModel(
         }
     }
 
+    // Real-time listener so ActiveResponseScreen reacts to status changes (e.g. requester resolves)
     fun loadSosById(id: String) {
+        selectedSosListener?.remove()
+        selectedSosListener = firestore.collection("sos_requests").document(id)
+            .addSnapshotListener { snap, _ ->
+                val sos = snap?.data?.let { FirebaseSosRepository.docToSosStatic(id, it) }
+                val prevStatus = _uiState.value.selectedSos?.status
+                _uiState.update { it.copy(selectedSos = sos) }
+                // Update volunteer stats when requester resolves the SOS
+                if (sos?.status == SosStatus.RESOLVED && prevStatus != SosStatus.RESOLVED) {
+                    updateVolunteerStats()
+                }
+            }
+    }
+
+    fun setOnTheWay(id: String) {
         viewModelScope.launch {
             try {
-                val snap = firestore.collection("sos_requests").document(id).get().await()
-                val sos = snap.data?.let { FirebaseSosRepository.docToSosStatic(id, it) }
-                _uiState.update { it.copy(selectedSos = sos) }
+                firestore.collection("sos_requests").document(id)
+                    .update("status", SosStatus.IN_PROGRESS.name).await()
             } catch (_: Exception) { }
         }
     }
 
-    fun resolveSos(id: String, onDone: () -> Unit) {
+    private fun updateVolunteerStats() {
         viewModelScope.launch {
             try {
-                firestore.collection("sos_requests").document(id).update(
+                val uid = auth.currentUser?.uid ?: return@launch
+                val snap = firestore.collection("users").document(uid).get().await()
+                @Suppress("UNCHECKED_CAST")
+                val profile = snap.get("volunteerProfile") as? Map<String, Any?> ?: emptyMap()
+                val total = ((profile["totalResponses"] as? Number)?.toInt() ?: 0) + 1
+                val successful = ((profile["successfulResponses"] as? Number)?.toInt() ?: 0) + 1
+                val score = (successful.toFloat() / total * 100f).coerceAtMost(100f)
+                firestore.collection("users").document(uid).update(
                     mapOf(
-                        "status" to SosStatus.RESOLVED.name,
-                        "resolvedAt" to com.google.firebase.Timestamp.now()
+                        "volunteerProfile.totalResponses" to total,
+                        "volunteerProfile.successfulResponses" to successful,
+                        "volunteerProfile.reliabilityScore" to score
                     )
                 ).await()
-                val uid = auth.currentUser?.uid
-                if (uid != null) {
-                    val snap = firestore.collection("users").document(uid).get().await()
-                    @Suppress("UNCHECKED_CAST")
-                    val profile = snap.get("volunteerProfile") as? Map<String, Any?> ?: emptyMap()
-                    val total = ((profile["totalResponses"] as? Number)?.toInt() ?: 0) + 1
-                    val successful = ((profile["successfulResponses"] as? Number)?.toInt() ?: 0) + 1
-                    val score = (successful.toFloat() / total * 100f).coerceAtMost(100f)
-                    firestore.collection("users").document(uid).update(
-                        mapOf(
-                            "volunteerProfile.totalResponses" to total,
-                            "volunteerProfile.successfulResponses" to successful,
-                            "volunteerProfile.reliabilityScore" to score
-                        )
-                    ).await()
-                    _uiState.update { it.copy(totalResponses = total, reliabilityScore = score) }
-                }
+                _uiState.update { it.copy(totalResponses = total, reliabilityScore = score) }
             } catch (_: Exception) { }
-            onDone()
         }
     }
 
     override fun onCleared() {
         super.onCleared()
-        alertListener?.remove()
+        selectedSosListener?.remove()
     }
 
     companion object {
