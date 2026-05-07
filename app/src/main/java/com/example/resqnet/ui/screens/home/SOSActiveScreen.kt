@@ -1,9 +1,10 @@
 package com.example.resqnet.ui.screens.home
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,14 +15,17 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.HourglassTop
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.PersonPin
+import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Route
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -29,6 +33,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -44,15 +49,47 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.resqnet.domain.model.EmergencyType
 import com.example.resqnet.domain.model.SosStatus
 import com.example.resqnet.ui.components.StatusBadge
 import com.example.resqnet.ui.components.VolunteerCard
 import com.example.resqnet.ui.theme.ResQNetTheme
+
+private data class EmergencyContact(val name: String, val number: String)
+
+private fun emergencyContactsFor(type: EmergencyType): List<EmergencyContact> = when (type) {
+    EmergencyType.MEDICAL -> listOf(
+        EmergencyContact("Ambulance (EMRI)", "108"),
+        EmergencyContact("National Emergency", "112"),
+        EmergencyContact("Health Helpline", "104")
+    )
+    EmergencyType.ACCIDENT -> listOf(
+        EmergencyContact("Ambulance (EMRI)", "108"),
+        EmergencyContact("Police", "100"),
+        EmergencyContact("National Emergency", "112")
+    )
+    EmergencyType.BLOOD_REQUEST -> listOf(
+        EmergencyContact("Health Helpline", "104"),
+        EmergencyContact("Blood Bank (NBTC)", "1910"),
+        EmergencyContact("National Emergency", "112")
+    )
+    EmergencyType.SAFETY_ALERT -> listOf(
+        EmergencyContact("Police", "100"),
+        EmergencyContact("Women Helpline", "1091"),
+        EmergencyContact("National Emergency", "112")
+    )
+    EmergencyType.OTHER -> listOf(
+        EmergencyContact("National Emergency", "112"),
+        EmergencyContact("Police", "100"),
+        EmergencyContact("Ambulance (EMRI)", "108")
+    )
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -66,6 +103,9 @@ fun SOSActiveScreen(
     LaunchedEffect(sosId) {
         sosViewModel.loadActiveSos(sosId)
     }
+
+    val isActive = uiState.currentStatus != SosStatus.RESOLVED &&
+            uiState.currentStatus != SosStatus.CANCELLED
 
     Scaffold(
         topBar = {
@@ -81,6 +121,62 @@ fun SOSActiveScreen(
                     containerColor = MaterialTheme.colorScheme.background
                 )
             )
+        },
+        bottomBar = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
+                    .padding(bottom = 24.dp, top = 8.dp)
+            ) {
+                if (uiState.currentStatus == SosStatus.IN_PROGRESS) {
+                    Button(
+                        onClick = { sosViewModel.resolveSos(sosId, onDone) },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.tertiary
+                        ),
+                        shape = MaterialTheme.shapes.medium,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp)
+                    ) {
+                        Text(
+                            "✓  Mark Resolved",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+                if (isActive) {
+                    OutlinedButton(
+                        onClick = { sosViewModel.cancelSos(sosId, onDone) },
+                        shape = MaterialTheme.shapes.medium,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                    ) {
+                        Icon(Icons.Default.Close, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Cancel SOS")
+                    }
+                }
+                if (!isActive) {
+                    Button(
+                        onClick = onDone,
+                        shape = MaterialTheme.shapes.medium,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp)
+                    ) {
+                        Text(
+                            "Back to Home",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+            }
         }
     ) { innerPadding ->
         Column(
@@ -89,6 +185,7 @@ fun SOSActiveScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .padding(horizontal = 24.dp)
+                .verticalScroll(rememberScrollState())
         ) {
             // Colored status banner
             val cs = MaterialTheme.colorScheme
@@ -128,7 +225,6 @@ fun SOSActiveScreen(
             }
 
             // Timeline steps
-            // isActive = this step is completed; isCurrent = this is the step being waited for next
             val s = uiState.currentStatus
             StatusStep(
                 icon = Icons.Default.HourglassTop,
@@ -162,7 +258,15 @@ fun SOSActiveScreen(
                 isLast = true
             )
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Emergency contacts — shown while waiting for help
+            if (isActive) {
+                uiState.activeSos?.emergencyType?.let { type ->
+                    EmergencyContactsCard(type = type)
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+            }
 
             // Volunteer info (appears after acceptance)
             AnimatedVisibility(
@@ -178,60 +282,78 @@ fun SOSActiveScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+    }
+}
 
-            // Action buttons — only requester can mark resolved, only after volunteer is on the way
-            if (uiState.currentStatus == SosStatus.IN_PROGRESS) {
-                Button(
-                    onClick = { sosViewModel.resolveSos(sosId, onDone) },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.tertiary
-                    ),
-                    shape = MaterialTheme.shapes.medium,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp)
+@Composable
+private fun EmergencyContactsCard(
+    type: EmergencyType,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val contacts = emergencyContactsFor(type)
+
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
+        ),
+        shape = MaterialTheme.shapes.large,
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "Have you called for help?",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                text = "Official emergency numbers • India",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            contacts.forEachIndexed { index, contact ->
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(
-                        "✓  Mark Resolved",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = contact.name,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = contact.number,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    OutlinedButton(
+                        onClick = {
+                            context.startActivity(
+                                Intent(Intent.ACTION_DIAL, Uri.parse("tel:${contact.number}"))
+                            )
+                        },
+                        shape = MaterialTheme.shapes.medium,
+                        modifier = Modifier.height(36.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Phone,
+                            contentDescription = "Call ${contact.name}",
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "Call",
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                    }
                 }
-                Spacer(modifier = Modifier.height(12.dp))
-            }
-
-            if (uiState.currentStatus != SosStatus.RESOLVED &&
-                uiState.currentStatus != SosStatus.CANCELLED
-            ) {
-                OutlinedButton(
-                    onClick = { sosViewModel.cancelSos(sosId, onDone) },
-                    shape = MaterialTheme.shapes.medium,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp)
-                ) {
-                    Icon(Icons.Default.Close, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Cancel SOS")
-                }
-            }
-
-            if (uiState.currentStatus == SosStatus.RESOLVED ||
-                uiState.currentStatus == SosStatus.CANCELLED
-            ) {
-                Button(
-                    onClick = onDone,
-                    shape = MaterialTheme.shapes.medium,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp)
-                ) {
-                    Text(
-                        "Back to Home",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                if (index < contacts.lastIndex) {
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
                 }
             }
         }
@@ -251,7 +373,6 @@ private fun StatusStep(
         verticalAlignment = Alignment.Top,
         modifier = Modifier.fillMaxWidth()
     ) {
-        // Icon + connecting line column
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.width(40.dp)

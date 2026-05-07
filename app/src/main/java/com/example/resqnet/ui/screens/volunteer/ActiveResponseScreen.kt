@@ -1,5 +1,7 @@
 package com.example.resqnet.ui.screens.volunteer
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,6 +37,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -52,6 +55,7 @@ fun ActiveResponseScreen(
     volunteerViewModel: VolunteerViewModel = viewModel(factory = VolunteerViewModel.Factory)
 ) {
     val uiState by volunteerViewModel.uiState.collectAsState()
+    val context = LocalContext.current
 
     LaunchedEffect(sosId) { volunteerViewModel.loadSosById(sosId) }
 
@@ -101,11 +105,21 @@ fun ActiveResponseScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Map placeholder
+            // Map card — tappable to open Google Maps navigation
+            val canNavigate = status != SosStatus.RESOLVED && sos != null
             Card(
+                onClick = {
+                    if (canNavigate) {
+                        openMapsNavigation(context, sos!!.latitude, sos.longitude)
+                    }
+                },
+                enabled = canNavigate,
                 shape = MaterialTheme.shapes.large,
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    containerColor = if (canNavigate)
+                        MaterialTheme.colorScheme.primaryContainer
+                    else
+                        MaterialTheme.colorScheme.surfaceVariant
                 ),
                 modifier = Modifier
                     .fillMaxWidth()
@@ -127,16 +141,21 @@ fun ActiveResponseScreen(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = if (status == SosStatus.RESOLVED) "Resolved" else "Navigation Map",
+                            text = if (status == SosStatus.RESOLVED) "Resolved" else "Navigate to Requester",
                             style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (canNavigate)
+                                MaterialTheme.colorScheme.onPrimaryContainer
+                            else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
                             text = if (status == SosStatus.RESOLVED)
                                 "The requester has marked this resolved"
-                            else "Live directions to requester",
+                            else "Tap to open Google Maps",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = if (canNavigate)
+                                MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                            else MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center
                         )
                     }
@@ -204,7 +223,30 @@ fun ActiveResponseScreen(
 
             when (status) {
                 SosStatus.ACCEPTED -> {
-                    // Volunteer taps this to let the requester know help is on the way
+                    // Open navigation first, then confirm on the way
+                    Button(
+                        onClick = {
+                            sos?.let { openMapsNavigation(context, it.latitude, it.longitude) }
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.secondary
+                        ),
+                        shape = MaterialTheme.shapes.medium,
+                        modifier = Modifier.fillMaxWidth().height(52.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Navigation,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            "Navigate to Requester",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
                     Button(
                         onClick = { volunteerViewModel.setOnTheWay(sosId) },
                         colors = ButtonDefaults.buttonColors(
@@ -222,7 +264,29 @@ fun ActiveResponseScreen(
                 }
 
                 SosStatus.IN_PROGRESS -> {
-                    // Waiting for requester to mark resolved
+                    Button(
+                        onClick = {
+                            sos?.let { openMapsNavigation(context, it.latitude, it.longitude) }
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.secondary
+                        ),
+                        shape = MaterialTheme.shapes.medium,
+                        modifier = Modifier.fillMaxWidth().height(52.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Navigation,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            "Navigate to Requester",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
                     Text(
                         text = "Waiting for the requester to mark this resolved.",
                         style = MaterialTheme.typography.bodyMedium,
@@ -264,6 +328,19 @@ fun ActiveResponseScreen(
                 }
             }
         }
+    }
+}
+
+private fun openMapsNavigation(context: android.content.Context, lat: Double, lng: Double) {
+    val navUri = Uri.parse("google.navigation:q=$lat,$lng&mode=d")
+    val intent = Intent(Intent.ACTION_VIEW, navUri).apply {
+        setPackage("com.google.android.apps.maps")
+    }
+    if (intent.resolveActivity(context.packageManager) != null) {
+        context.startActivity(intent)
+    } else {
+        // Fallback: any installed map application
+        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("geo:$lat,$lng?q=$lat,$lng")))
     }
 }
 
